@@ -113,36 +113,3 @@ def generate_report_api():
         with open(report_path, "r") as f:
             content = f.read()
         return jsonify({"report": content}), 200
-
-@reports_bp.route("/run-agent", methods=["POST"])
-def run_agent_endpoint():
-    """
-    Endpoint to test the run_agent function from the workflow.
-    Expects JSON input with 'input_query' and 'index_name'.
-    """
-    try:
-        data = request.get_json()
-        input_query = data.get("input_query")
-        index_name = data.get("index_name")
-        if not input_query or not index_name:
-            return jsonify({"error": "Both 'input_query' and 'index_name' are required"}), 400
-
-        result = asyncio.run(run_agent(input_query, index_name))
-        # result is a ReportOutput object
-        result_dict = {
-            "blocks": [
-                {
-                    "type": "text",
-                    "content": block.text
-                } if block.__class__.__name__ == "TextBlock" else {
-                    "type": "table",
-                    "caption": block.caption,
-                    "col_names": block.col_names,
-                    "rows": block.rows
-                }
-                for block in result.blocks
-            ]
-        }
-        return jsonify(result_dict), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500

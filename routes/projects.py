@@ -42,6 +42,13 @@ def list_projects():
     projects = [doc.to_dict() for doc in projects_ref.stream()]
     return jsonify(projects), 200
 
+# list all projects for a user
+@projects_bp.route("/user/<user_id>", methods=["GET"])
+def list_user_projects(user_id):
+    projects_ref = db.collection("projects").where("user_id", "==", user_id)
+    projects = [doc.to_dict() for doc in projects_ref.stream()]
+    return jsonify(projects), 200
+
 @projects_bp.route("/<project_id>", methods=["GET"])
 def get_project(project_id):
     project_ref = db.collection("projects").document(project_id)
