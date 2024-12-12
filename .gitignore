@@ -1,0 +1,10 @@
+/venv
+.DS_Store
+/bin
+/lib
+/example_notebooks
+/iclr_docs
+/include
+/pyvenv.cfg
+.env
+firebase_credentials.json
