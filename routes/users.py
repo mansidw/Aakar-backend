@@ -17,11 +17,25 @@ def create_user():
         "user_id": user_id,
         "name": data.get("name"),
         "email": data.get("email"),
+        "password": data.get("password"),
         "created_at": get_timestamp(),
         "updated_at": get_timestamp(),
     }
     db.collection("users").document(user_id).set(user_data)
     return jsonify(user_data), 201
+
+# login user
+@users_bp.route("/login", methods=["POST"])
+def login_user():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+    user_ref = db.collection("users")
+    users = [doc.to_dict() for doc in user_ref.stream()]
+    for user in users:
+        if user.get("email") == email and user.get("password") == password:
+            return jsonify(user), 200
+    return jsonify({"error": "User not found"}), 404
 
 @users_bp.route("/", methods=["GET"])
 def list_users():
