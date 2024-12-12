@@ -1,3 +1,4 @@
+# routes/uploads.py is a blueprint that defines the routes for uploading files to Llama Cloud.
 from flask import Blueprint, jsonify, request
 from services.firebase_service import get_firestore_client
 from services.llama_service import upload_to_llama_cloud

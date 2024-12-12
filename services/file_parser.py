@@ -1,4 +1,4 @@
-# services/file_parser.py
+# services/file_parser.py is a Python module that provides functions for parsing different types of files and generating summaries. The module uses the LlamaParse class from the llama_parse module to parse files and extract text and image chunks with metadata. It also uses the OpenAI class from the llama_index.llms.openai module to generate summaries of the parsed text.
 from llama_parse import LlamaParse
 from pathlib import Path
 from llama_index.llms.openai import OpenAI

@@ -1,3 +1,4 @@
+# routes/reports.py - API routes for generating reports
 from flask import Blueprint, jsonify, request, send_file
 from services.llama_service import initialize_agent
 from services.report_agent import run_agent

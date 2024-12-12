@@ -1,3 +1,4 @@
+# routes/projects.py - API routes for projects
 from flask import Blueprint, jsonify, request
 from services.firebase_service import get_firestore_client
 from services.llama_service import create_llama_index, list_files_in_llama_cloud

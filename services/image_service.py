@@ -1,3 +1,4 @@
+# services/image_service.py
 import os
 import base64
 from PIL import Image

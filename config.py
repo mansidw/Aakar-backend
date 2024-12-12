@@ -1,4 +1,4 @@
-#
+#config.py
 import os
 from firebase_admin import credentials, initialize_app
 
@@ -8,4 +8,4 @@ cred = credentials.Certificate(FIREBASE_CREDENTIALS)
 firebase_app = initialize_app(cred)
 
 # Llama Cloud Configuration
-LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY", "llx-gG7cGEwKqqEPHVfMHwVCrPXSATxLioBw89eR88Hdxv8TQOvL")
+LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")

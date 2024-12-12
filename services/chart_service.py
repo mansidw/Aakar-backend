@@ -1,3 +1,4 @@
+# services/chart_service.py - A service that generates charts from data
 import plotly.graph_objs as go
 import plotly.io as pio
 import os

@@ -1,3 +1,4 @@
+# services/firebase_service.py - Firebase service to initialize Firestore client
 import firebase_admin
 from firebase_admin import credentials, firestore
 

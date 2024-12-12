@@ -1,3 +1,4 @@
+# routes/chats.py is a blueprint that defines the routes for the chat service.
 from flask import Blueprint, jsonify, request
 from services.chat_service import list_sessions, list_chats
 

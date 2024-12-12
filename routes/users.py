@@ -1,3 +1,4 @@
+# routes/users.py - API routes for managing users
 from flask import Blueprint, jsonify, request
 from services.firebase_service import get_firestore_client
 import uuid

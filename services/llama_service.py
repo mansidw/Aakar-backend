@@ -1,3 +1,4 @@
+# llama_service.py - Service for interacting with Llama Cloud
 import os
 from llama_cloud.client import LlamaCloud
 from llama_index.indices.managed.llama_cloud import LlamaCloudIndex

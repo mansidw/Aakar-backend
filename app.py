@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, jsonify
 from routes.users import users_bp
 from routes.projects import projects_bp

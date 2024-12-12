@@ -1,3 +1,4 @@
+# routes/chats.py is a blueprint that defines the routes for the chat service.
 import uuid
 from datetime import datetime
 from services.firebase_service import get_firestore_client
