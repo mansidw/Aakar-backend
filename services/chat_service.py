@@ -53,10 +53,19 @@ def list_sessions(user_id, project_id):
     sessions = [doc.to_dict() for doc in sessions_ref.stream()]
     return sessions
 
+import base64
+
 def list_chats(session_id):
     chats_ref = db.collection("chats").where("session_id", "==", session_id).order_by("timestamp")
-    chats = [doc.to_dict() for doc in chats_ref.stream()]            
+    chats = []
+    for doc in chats_ref.stream():
+        chat = doc.to_dict()
+        if "file" in chat and chat["file"]:  # Check if the file field exists
+            # Encode the file field to Base64
+            chat["file"] = base64.b64encode(chat["file"]).decode("utf-8")
+        chats.append(chat)
     return chats
+
 
 def upload_files(projectid, fileid):
     file = {
