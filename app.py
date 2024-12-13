@@ -8,10 +8,12 @@ from routes.chats import chats_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 import logging
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import os
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024 
+CORS(app)
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
