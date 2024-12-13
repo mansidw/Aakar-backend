@@ -1,6 +1,6 @@
 # routes/chats.py is a blueprint that defines the routes for the chat service.
 from flask import Blueprint, jsonify, request
-from services.chat_service import list_sessions, list_chats
+from services.chat_service import list_sessions, list_chats, delete_session_chats
 
 chats_bp = Blueprint("chats", __name__)
 
@@ -17,3 +17,9 @@ def get_sessions():
 def get_chats_in_session(session_id):
     chats = list_chats(session_id)
     return jsonify(chats), 200
+
+# delete session
+@chats_bp.route("/session/<session_id>", methods=["DELETE"])
+def delete_session(session_id):
+    delete_session_chats(session_id)
+    return jsonify({"message": "Session deleted"}), 200

@@ -80,3 +80,15 @@ def get_files_project(projectid):
     files_ref = db.collection("files").where("project_id", "==", projectid)
     files = [doc.to_dict() for doc in files_ref.stream()]
     return files
+
+def delete_session_chats(session_id):
+    # Delete session
+    try:
+        db.collection("sessions").document(session_id).delete()
+
+        # Delete chats
+        chats_ref = db.collection("chats").where("session_id", "==", session_id)
+        return True
+    except Exception as e:
+        print(f"Error deleting session: {e}")
+        return False
