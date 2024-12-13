@@ -60,4 +60,7 @@ def get_project(project_id):
 @projects_bp.route("/<project_id>/files", methods=["GET"])
 def list_project_files(project_id):
     files = list_files_in_llama_cloud(project_id)
+    print(f"Files in Llama Cloud for project {project_id}: {files}")
+    #  get the files from firebase for that project_id
+
     return jsonify({"project_id": project_id, "files": files}), 200

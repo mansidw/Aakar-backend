@@ -38,9 +38,9 @@ def upload_files():
         try:
             file_path = f"/tmp/{file.filename}"
             file.save(file_path)
-            upload_to_llama_cloud(index_id, file_path)
+            upload_to_llama_cloud(index_id, file_path, project_id)
             success.append({"file_name": file.filename, "status": "uploaded"})
         except Exception as e:
             errors.append({"file_name": file.filename, "error": str(e)})
-
+            
     return jsonify({"success": success, "errors": errors}), 200

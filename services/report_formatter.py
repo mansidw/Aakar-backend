@@ -130,3 +130,24 @@ def generate_markdown(content: str, tables: List[Dict], charts: List[str], image
     with open(md_path, "w") as f:
         f.write(md_content)
     return md_path
+
+def create_md_content(content: str, tables: List[Dict], charts: List[str], images: List[str]) -> str:
+    md_content = f"{content}\n\n"
+
+    for table in tables:
+        md_content += f"## {table['title']}\n\n"
+        md_content += "| " + " | ".join(table['columns']) + " |\n"
+        md_content += "|" + "|".join(["---"] * len(table['columns'])) + "|\n"
+        for row in table['rows']:
+            md_content += "| " + " | ".join([str(item) for item in row]) + " |\n"
+        md_content += "\n"
+
+    for chart in charts:
+        if os.path.exists(chart):
+            md_content += f"## {os.path.basename(chart)}\n\n"
+            md_content += f"![Chart]({chart})\n\n"
+
+    for image in images:
+        if os.path.exists(image):
+            md_content += f"![Image]({image})\n\n"
+    return md_content

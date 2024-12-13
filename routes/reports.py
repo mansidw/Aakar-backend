@@ -3,10 +3,12 @@ from flask import Blueprint, jsonify, request, send_file
 from services.llama_service import initialize_agent
 from services.report_agent import run_agent
 from services.firebase_service import get_firestore_client
-from services.report_formatter import generate_pdf, generate_docx, generate_html, generate_markdown
+from services.report_formatter import generate_pdf, generate_docx, generate_html, generate_markdown, create_md_content
 from services.chart_service import ChartService
 from services.image_service import ImageService
 from services.chat_service import create_chat_session_if_not_exists
+from services.llama_service import upload_to_llama_cloud_only
+from services.chat_service import save_chat
 import logging
 import asyncio
 import os
@@ -34,7 +36,7 @@ def generate_report_api():
         return jsonify({"error": "Project ID, User ID, and query are required"}), 400
 
     # Ensure session_id
-    session_id = create_chat_session_if_not_exists(user_id, project_id, session_id)
+    session_id = create_chat_session_if_not_exists(user_id, project_id, query, session_id)
 
     # Run agent to get report
     try:
@@ -91,6 +93,9 @@ def generate_report_api():
     else:
         # Default or MARKDOWN
         report_path = generate_markdown(text_content, tables, chart_paths, image_paths)
+    
+    # need markdown content for chat
+    markdown_content = create_md_content(text_content, tables, chart_paths, image_paths)
 
     # Return the file
     if report_format in ["PDF", "DOCX", "HTML", "MARKDOWN"]:
@@ -102,6 +107,12 @@ def generate_report_api():
             "MARKDOWN": "text/markdown"
         }
         mime_type = mime_types.get(report_format, "text/markdown")
+        # save the file to llama cloud
+        savedFile = upload_to_llama_cloud_only(report_path)
+
+        # save chats
+        save_chat(session_id, query, savedFile, report_path, user_id, project_id, report_format, markdown_content)
+
         return send_file(
             report_path,
             as_attachment=True,
