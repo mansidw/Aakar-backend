@@ -11,12 +11,17 @@ def image_to_base64(path: str) -> str:
         b64_data = base64.b64encode(img_file.read()).decode('utf-8')
     return f"data:image/png;base64,{b64_data}"
 
-def generate_pdf(content: str, tables: List[Dict], charts: List[str], images: List[str]) -> str:
+from fpdf import FPDF
+
+def generate_pdf(content: str, tables: List[Dict], chart_info: List[Tuple[Dict, str]], images: List[str]) -> str:
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    # Add a unicode font (assuming DejaVuSans.ttf is in the current directory)
+    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+    pdf.set_font('DejaVu', '', 12)
+    
+    # Now you can safely use text with the rupee symbol
     pdf.multi_cell(0, 10, content)
-
     for table in tables:
         pdf.ln(10)
         pdf.set_font("Arial", 'B', size=12)
