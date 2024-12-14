@@ -1,9 +1,15 @@
 # services/report_formatter.py
+import os
 from typing import List, Dict
 from fpdf import FPDF
 from docx import Document
 from docx.shared import Inches
-import os
+import base64
+
+def image_to_base64(path: str) -> str:
+    with open(path, "rb") as img_file:
+        b64_data = base64.b64encode(img_file.read()).decode('utf-8')
+    return f"data:image/png;base64,{b64_data}"
 
 def generate_pdf(content: str, tables: List[Dict], charts: List[str], images: List[str]) -> str:
     pdf = FPDF()
@@ -89,13 +95,17 @@ def generate_html(content: str, tables: List[Dict], charts: List[str], images: L
             html_content += "</tr>"
         html_content += "</table>"
 
+    # Convert charts to base64 for inline display
     for chart in charts:
         if os.path.exists(chart):
-            html_content += f"<h2>{os.path.basename(chart)}</h2><img src='{chart}' style='width:600px;'>"
+            b64_img = image_to_base64(chart)
+            html_content += f"<h2>{os.path.basename(chart)}</h2><img src='{b64_img}' style='width:600px;'>"
 
+    # Convert images to base64 for inline display
     for image in images:
         if os.path.exists(image):
-            html_content += f"<img src='{image}' style='width:600px;'>"
+            b64_img = image_to_base64(image)
+            html_content += f"<img src='{b64_img}' style='width:600px;'>"
 
     html_content += "</body></html>"
 
@@ -116,14 +126,18 @@ def generate_markdown(content: str, tables: List[Dict], charts: List[str], image
             md_content += "| " + " | ".join([str(item) for item in row]) + " |\n"
         md_content += "\n"
 
+    # Convert charts to base64
     for chart in charts:
         if os.path.exists(chart):
+            b64_img = image_to_base64(chart)
             md_content += f"## {os.path.basename(chart)}\n\n"
-            md_content += f"![Chart]({chart})\n\n"
+            md_content += f"![Chart]({b64_img})\n\n"
 
+    # Convert images to base64
     for image in images:
         if os.path.exists(image):
-            md_content += f"![Image]({image})\n\n"
+            b64_img = image_to_base64(image)
+            md_content += f"![Image]({b64_img})\n\n"
 
     md_path = "reports/report.md"
     os.makedirs(os.path.dirname(md_path), exist_ok=True)
@@ -144,10 +158,12 @@ def create_md_content(content: str, tables: List[Dict], charts: List[str], image
 
     for chart in charts:
         if os.path.exists(chart):
+            b64_img = image_to_base64(chart)
             md_content += f"## {os.path.basename(chart)}\n\n"
-            md_content += f"![Chart]({chart})\n\n"
+            md_content += f"![Chart]({b64_img})\n\n"
 
     for image in images:
         if os.path.exists(image):
-            md_content += f"![Image]({image})\n\n"
+            b64_img = image_to_base64(image)
+            md_content += f"![Image]({b64_img})\n\n"
     return md_content

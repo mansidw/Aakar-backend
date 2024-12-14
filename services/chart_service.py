@@ -1,38 +1,56 @@
-# services/chart_service.py - A service that generates charts from data
-import plotly.graph_objs as go
-import plotly.io as pio
+# services/chart_service.py
 import os
-from typing import List, Dict, Any
+import matplotlib
+matplotlib.use('Agg')  # Use a non-GUI backend for chart generation
+import matplotlib.pyplot as plt
+from typing import List, Dict
 
 class ChartService:
-    def __init__(self, charts_dir: str = "charts"):
-        self.charts_dir = charts_dir
-        os.makedirs(self.charts_dir, exist_ok=True)
+    def __init__(self):
+        pass
 
-    def generate_charts(self, charts_data: List[Dict[str, Any]]) -> List[str]:
+    def generate_charts(self, charts_data: List[Dict]) -> List[str]:
+        """
+        charts_data: a list of dicts like:
+        {
+            "type": "bar" or "line" or "pie",
+            "title": "Chart Title",
+            "data": [{"label": "A", "value": 10}, {"label": "B", "value": 20}]
+        }
+        """
         chart_paths = []
-        for chart in charts_data:
-            chart_type = chart.get('type')
-            title = chart.get('title', 'Chart')
-            data = chart.get('data', {})
-            fig = None
+        os.makedirs("charts", exist_ok=True)
 
-            if chart_type.lower() == 'bar':
-                fig = go.Figure([go.Bar(x=data.get('x', []), y=data.get('y', []))])
-            elif chart_type.lower() == 'line':
-                fig = go.Figure([go.Scatter(x=data.get('x', []), y=data.get('y', []), mode='lines')])
-            elif chart_type.lower() == 'pie':
-                fig = go.Figure([go.Pie(labels=data.get('labels', []), values=data.get('values', []))])
+        for i, chart in enumerate(charts_data):
+            chart_type = chart["type"]
+            title = chart["title"]
+            data = chart["data"]
+
+            labels = [d["label"] for d in data]
+            values = [d["value"] for d in data]
+
+            plt.figure(figsize=(6,4))
+            if chart_type == "bar":
+                plt.bar(labels, values)
+                plt.title(title)
+                plt.xlabel("Category")
+                plt.ylabel("Value")
+            elif chart_type == "line":
+                plt.plot(labels, values, marker='o')
+                plt.title(title)
+                plt.xlabel("Category")
+                plt.ylabel("Value")
+            elif chart_type == "pie":
+                plt.pie(values, labels=labels, autopct='%1.1f%%')
+                plt.title(title)
             else:
-                continue
+                # default to bar if unknown
+                plt.bar(labels, values)
+                plt.title(title)
 
-            if fig:
-                fig.update_layout(title=title)
-                chart_filename = f"{title.replace(' ', '_').lower()}.png"
-                chart_path = os.path.join(self.charts_dir, chart_filename)
-                try:
-                    pio.write_image(fig, chart_path)
-                    chart_paths.append(chart_path)
-                except Exception as e:
-                    print(f"Failed to generate chart '{title}': {e}")
+            chart_path = f"charts/chart_{i}.png"
+            plt.savefig(chart_path)
+            plt.close()
+            chart_paths.append(chart_path)
+
         return chart_paths

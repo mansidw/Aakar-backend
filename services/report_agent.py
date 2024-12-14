@@ -1,16 +1,16 @@
-# services/report_agent.py
 import os
 import tiktoken
 import openai
 import pandas as pd
 from IPython.display import display, Markdown
 from dotenv import load_dotenv
-from typing import List, Tuple, Union, Any, Optional
+from typing import List, Tuple, Union, Any, Optional, Dict
 from pydantic import BaseModel, Field
 import nest_asyncio
 import json
 
 from operator import itemgetter
+from uuid import uuid4
 
 from llama_index.core import Settings, set_global_tokenizer
 from llama_index.llms.openai import OpenAI
@@ -24,10 +24,10 @@ from llama_index.core.llms.structured_llm import StructuredLLM
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools.types import BaseTool
-from llama_index.core.tools import ToolSelection
 from llama_index.core.response_synthesizers import TreeSummarize, CompactAndRefine
 from llama_index.core.workflow import Event
-from llama_index.core.prompts import Prompt
+from llama_index.core.tools import ToolSelection
+
 
 # Enable async support
 nest_asyncio.apply()
@@ -55,47 +55,49 @@ class TableBlock(BaseModel):
         df = pd.DataFrame(self.rows, columns=self.col_names)
         return df
 
+class ChartBlock(BaseModel):
+    type: str = Field(..., description="Type of chart. e.g. 'bar', 'line', 'pie'")
+    title: str = Field(..., description="Title of the chart.")
+    data: List[Dict[str, Any]] = Field(
+        ..., 
+        description="Data for the chart. For a bar/line chart, data might look like [{'label': 'A', 'value': 10}, {'label': 'B', 'value': 20}]. For a pie chart, similar structure."
+    )
+
+# Updated system prompt for report generation
 report_gen_system_prompt = """\
 You are a report generation assistant tasked with producing a well-formatted report given parsed context.
-You will be given context from one or more reports that take the form of parsed text + tables
-You are responsible for producing a report with interleaving text and tables - in the format of interleaving text and "table" blocks.
 
-Make sure the report is detailed with a lot of textual explanations especially if tables are given.
+You will be given context from one or more documents that include text and possibly tables and chart data.
+Your job:
+- Produce a final report in **valid JSON format** that conforms to the ReportOutput schema below.
+- The final JSON must contain a "blocks" key, which is an array of objects.
+- Each object in "blocks" can be one of the following:
+  - {"text": "..."}
+  - {
+      "caption": "...", 
+      "col_names": [...], 
+      "rows": [...]
+    }
+  - {
+      "type": "...",
+      "title": "...",
+      "data": [...]
+    }
 
-You MUST output your response as a tool call in order to adhere to the required output format. Do NOT give back normal text.
+Where "type" in a chart block could be "bar", "line", or "pie".
+"data" in the chart block should be a list of dictionaries, for example:
+For a bar chart:
+"type": "bar",
+"title": "Sales by Region",
+"data": [{"label": "North", "value": 100}, {"label": "South", "value": 150}]
 
-Here is an example of a toy valid tool call - note the text and table block:
-{
-    "blocks": [
-        {
-            "text": "A report on cities"
-        },
-        {
-            "caption": "Comparison of CityA vs. CityB",
-            "col_names": [
-              "",
-              "Population",
-              "Country",
-            ],
-            "rows": [
-              [
-                "CityA",
-                "1,000,000",
-                "USA"
-              ],
-              [
-                "CityB",
-                "2,000,000",
-                "Mexico"
-              ]
-            ]
-        }
-    ]
-}
+Return only the JSON object with no extra text or formatting. Ensure it's valid JSON.
 """
 
 class ReportOutput(BaseModel):
-    blocks: List[Union[TextBlock, TableBlock]] = Field(..., description="A list of blocks: text, table.")
+    blocks: List[Union[TextBlock, TableBlock, ChartBlock]] = Field(
+        ..., description="A list of blocks: text, table, chart."
+    )
 
     def render(self) -> None:
         for block in self.blocks:
@@ -103,38 +105,19 @@ class ReportOutput(BaseModel):
                 display(Markdown(block.text))
             elif isinstance(block, TableBlock):
                 display(block.to_df())
+            elif isinstance(block, ChartBlock):
+                print(f"Chart: {block.title} ({block.type})", block.data)
 
-# Updated system prompt for report generation
-report_gen_system_prompt = """\
-You are a report generation assistant tasked with producing a well-formatted report given parsed context.
-
-You will be given context from one or more documents that include text and possibly tables.
-Your job:
-- Produce a final report in **valid JSON format** that conforms to the ReportOutput schema below.
-- The final JSON must contain a "blocks" key, which is an array of objects.
-- Each object in "blocks" can be one of the following:
-  - {"text": "..."}
-  - {"caption": "...", "col_names": [...], "rows": [...]}
-
-Return only the JSON object with no extra text or formatting. Ensure it's valid JSON.
-"""
-
-# Initialize embeddings and LLM
 embed_model = OpenAIEmbedding(model="text-embedding-3-large")
 llm = OpenAI(model="gpt-4o")
 Settings.embed_model = embed_model
 Settings.llm = llm
 
 report_gen_llm = OpenAI(model="gpt-4o", max_tokens=2048, system_prompt=report_gen_system_prompt)
-# Convert to a structured LLM, but we will still parse JSON just in case
 report_gen_sllm = report_gen_llm.as_structured_llm(output_cls=ReportOutput)
 
-# Define workflow events
 class InputEvent(Event):
     input: List[ChatMessage]
-
-class ChunkRetrievalEvent(Event):
-    tool_call: ToolSelection
 
 class DocRetrievalEvent(Event):
     tool_call: ToolSelection
@@ -145,14 +128,12 @@ class ReportGenerationEvent(Event):
 class ReportGenerationAgent(Workflow):
     def __init__(
         self,
-        chunk_retriever_tool: BaseTool,
         doc_retriever_tool: BaseTool,
         llm: Optional[FunctionCallingLLM] = None,
         report_gen_sllm: Optional[StructuredLLM] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.chunk_retriever_tool = chunk_retriever_tool
         self.doc_retriever_tool = doc_retriever_tool
         self.llm = llm or OpenAI()
         self.summarizer = CompactAndRefine(llm=self.llm)
@@ -161,7 +142,6 @@ class ReportGenerationAgent(Workflow):
             ReportOutput, system_prompt=report_gen_system_prompt
         )
         self.report_gen_summarizer = TreeSummarize(llm=self.report_gen_sllm)
-
         self.memory = ChatMemoryBuffer.from_defaults(llm=llm)
 
     @step(pass_context=True)
@@ -175,65 +155,40 @@ class ReportGenerationAgent(Workflow):
         return InputEvent(input=chat_history)
 
     @step(pass_context=True)
-    async def handle_llm_input(self, ctx: Context, ev: InputEvent) -> Union[ChunkRetrievalEvent, DocRetrievalEvent, ReportGenerationEvent, StopEvent]:
-        chat_history = ev.input
-        response = await self.llm.achat_with_tools(
-            [self.chunk_retriever_tool, self.doc_retriever_tool],
-            chat_history=chat_history,
-        )
-        self.memory.put(response.message)
-        tool_calls = self.llm.get_tool_calls_from_response(
-            response, error_on_no_tool_call=False
-        )
-        if not tool_calls:
-            return ReportGenerationEvent()
-        for tool_call in tool_calls:
-            if tool_call.tool_name == self.chunk_retriever_tool.metadata.name:
-                print("Tool", "chunk_retriever_tool", "called")
-                return ChunkRetrievalEvent(tool_call=tool_call)
-            elif tool_call.tool_name == self.doc_retriever_tool.metadata.name:
-                print("Tool", "doc_retriever_tool", "called")
-                return DocRetrievalEvent(tool_call=tool_call)
-        return ReportGenerationEvent()
-
-    @step(pass_context=True)
-    async def handle_retrieval(
-        self, ctx: Context, ev: Union[ChunkRetrievalEvent, DocRetrievalEvent]
-    ) -> InputEvent:
-        """Handle retrieval."""
-        query = ev.tool_call.tool_kwargs["query"]
-        retrieved_chunks = (
-            self.chunk_retriever_tool(query).raw_output
-            if isinstance(ev, ChunkRetrievalEvent)
-            else self.doc_retriever_tool(query).raw_output
-        )
+    async def handle_retrieval(self, ctx: Context, ev: InputEvent) -> ReportGenerationEvent:
+        query = ctx.data["query"]
+        print(f"Retrieving documents for query: {query}")
+        retrieved_chunks = self.doc_retriever_tool(query).raw_output
         print(f"Retrieved chunks: {retrieved_chunks}")
         ctx.data["stored_chunks"].extend(retrieved_chunks)
 
-        response = self.summarizer.synthesize(query, nodes=retrieved_chunks)
-        self.memory.put(
-            ChatMessage(
-                role="tool",
-                content=str(response),
-                additional_kwargs={
-                    "tool_call_id": ev.tool_call.tool_id,
-                    "name": ev.tool_call.tool_name,
-                },
+        if retrieved_chunks:
+            response = self.summarizer.synthesize(query, nodes=retrieved_chunks)
+            self.memory.put(
+                ChatMessage(
+                    role="tool",
+                    content=str(response),
+                    additional_kwargs={
+                        "tool_call_id": str(uuid4()),  # Generate unique ID for each tool call
+                        "name": "doc_retriever_tool",
+                    },
+                )
             )
-        )
+        else:
+            print("No chunks retrieved. Proceeding with empty response.")
 
-        return InputEvent(input=self.memory.get())
+        # Produce ReportGenerationEvent after retrieval
+        return ReportGenerationEvent()
 
     @step(pass_context=True)
     async def generate_report(self, ctx: Context, ev: ReportGenerationEvent) -> StopEvent:
-        """Generate report."""
         response = self.report_gen_summarizer.synthesize(
             ctx.data["query"], nodes=ctx.data["stored_chunks"]
         )
         print(f"Report generation response: {response}")
         return StopEvent(result={"response": response})
 
-# The main function to run the agent
+# Main function to run the agent
 async def run_agent(input_query: str, index_name: str):
     print("Running agent...", input_query)
     index = LlamaCloudIndex(
@@ -242,20 +197,14 @@ async def run_agent(input_query: str, index_name: str):
         api_key=os.getenv("LLAMA_CLOUD_API_KEY")
     )
     doc_retriever = index.as_retriever(retrieval_mode="files_via_content", files_top_k=1)
-    chunk_retriever = index.as_retriever(retrieval_mode="chunks", rerank_top_n=5)
-
-    def chunk_retriever_fn(query: str) -> List[NodeWithScore]:
-        return chunk_retriever.retrieve(query)
 
     def doc_retriever_fn(query: str) -> List[NodeWithScore]:
         return doc_retriever.retrieve(query)
 
-    chunk_retriever_tool = FunctionTool.from_defaults(fn=chunk_retriever_fn)
     doc_retriever_tool = FunctionTool.from_defaults(fn=doc_retriever_fn)
 
     agent = ReportGenerationAgent(
-        chunk_retriever_tool,
-        doc_retriever_tool,
+        doc_retriever_tool=doc_retriever_tool,
         llm=llm,
         report_gen_sllm=report_gen_sllm,
         verbose=True,
@@ -263,6 +212,5 @@ async def run_agent(input_query: str, index_name: str):
     )
 
     ret = await agent.run(input=input_query)
-    # ret is {"response": ReportOutput}
-    result: ReportOutput = ret["response"]  # This should now be a ReportOutput object
+    result: ReportOutput = ret["response"]
     return result
