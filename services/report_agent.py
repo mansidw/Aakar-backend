@@ -189,8 +189,10 @@ class ReportGenerationAgent(Workflow):
             return ReportGenerationEvent()
         for tool_call in tool_calls:
             if tool_call.tool_name == self.chunk_retriever_tool.metadata.name:
+                print("Tool", "chunk_retriever_tool", "called")
                 return ChunkRetrievalEvent(tool_call=tool_call)
             elif tool_call.tool_name == self.doc_retriever_tool.metadata.name:
+                print("Tool", "doc_retriever_tool", "called")
                 return DocRetrievalEvent(tool_call=tool_call)
         return ReportGenerationEvent()
 
@@ -205,6 +207,7 @@ class ReportGenerationAgent(Workflow):
             if isinstance(ev, ChunkRetrievalEvent)
             else self.doc_retriever_tool(query).raw_output
         )
+        print(f"Retrieved chunks: {retrieved_chunks}")
         ctx.data["stored_chunks"].extend(retrieved_chunks)
 
         response = self.summarizer.synthesize(query, nodes=retrieved_chunks)

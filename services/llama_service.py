@@ -32,13 +32,16 @@ def create_llama_index(project_id):
     llama_parse_parameters = {
         'premium_mode': True,
         'extract_charts': True,
-        'use_vendor_multimodal_model': True,
-        'vendor_multimodal_model_name': 'anthropic-sonnet-3.5',
+        'use_vendor_multimodal_model': False,
         'auto_mode': True,
         'auto_mode_trigger_on_table_in_page': True,
         'auto_mode_trigger_on_image_in_page': True,
         'annotate_links': True,
         'guess_xlsx_sheet_name': True,
+    }
+    preset_retrieval_parameters = {
+        'retrieval_mode': 'files_via_content',
+        'files_top_k': 10
     }
     pipeline = {
         'name': f"project_{project_id}_index",
