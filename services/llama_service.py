@@ -24,7 +24,9 @@ def create_llama_index(project_id):
             'mode': 'page',
         },
         'chunking_config': {
-            'mode': 'none',
+            'mode': 'token',
+            'chunk_size': '1024',
+            'chunk_overlap': '200'
         }
     }
     llama_parse_parameters = {
