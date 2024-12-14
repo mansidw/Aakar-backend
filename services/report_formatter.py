@@ -13,7 +13,7 @@ def image_to_base64(path: str) -> str:
 
 from fpdf import FPDF
 
-def generate_pdf(content: str, tables: List[Dict], chart_info: List[Tuple[Dict, str]], images: List[str]) -> str:
+def generate_pdf(content: str, tables: List[Dict], charts: List[str], images: List[str]) -> str:
     pdf = FPDF()
     pdf.add_page()
     # Add a unicode font (assuming DejaVuSans.ttf is in the current directory)
