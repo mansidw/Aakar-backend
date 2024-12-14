@@ -1,6 +1,6 @@
 # services/report_formatter.py
 import os
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from fpdf import FPDF
 from docx import Document
 from docx.shared import Inches
